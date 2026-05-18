@@ -23,7 +23,7 @@ app.use(
 app.use(express.json());
 
 app.get("/api/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", message: "German Resume Builder API" });
+  res.json({ status: "ok", message: "German Resume AI Builder API" });
 });
 
 app.use("/api/resumes", resumeRoutes);
