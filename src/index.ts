@@ -14,7 +14,7 @@ import userResumeRoutes from "./routes/userResumeRoutes";
 import { ApiError } from "./utils/apiError";
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5000;
 
 void connectDB();
 
