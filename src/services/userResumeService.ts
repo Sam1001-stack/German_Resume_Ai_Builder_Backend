@@ -3,7 +3,7 @@ import { UserResume } from "../models/UserResume";
 import type { ResumeLocale, SavedUserResumeResponse } from "../types/userResume";
 import { ApiError } from "../utils/apiError";
 import type { SaveUserResumeInput } from "../validators/userResumeValidator";
-import { deleteResumePdf, readResumePdf, saveResumePdf } from "./resumePdfService";
+import { deleteResumePdf, resolveResumePdf, saveResumePdf } from "./resumePdfService";
 
 function toResponse(doc: {
   _id: Types.ObjectId;
@@ -95,7 +95,20 @@ export const userResumeService = {
   async getPdf(userId: string, id: string): Promise<{ buffer: Buffer; title: string }> {
     const doc = await UserResume.findOne({ _id: id, userId });
     if (!doc) throw new ApiError(404, "Resume not found");
-    const buffer = await readResumePdf(doc.pdfPath);
+
+    const { buffer, pdfPath } = await resolveResumePdf(
+      userId,
+      doc._id.toString(),
+      doc.content,
+      doc.locale,
+      doc.pdfPath
+    );
+
+    if (doc.pdfPath !== pdfPath) {
+      doc.pdfPath = pdfPath;
+      await doc.save();
+    }
+
     return { buffer, title: doc.title };
   },
 
