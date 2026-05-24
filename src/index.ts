@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 5000;
 
 void connectDB();
 
-console.log(process.env.CLIENT_URL);
+console.log(process.env.CLIENT_URL + " client url" + PORT + " port");
 
 app.use(
   cors({
