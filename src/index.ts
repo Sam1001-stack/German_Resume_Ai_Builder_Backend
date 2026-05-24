@@ -22,7 +22,9 @@ console.log(process.env.CLIENT_URL + " client url" + PORT + " port");
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: [
+      process.env.CLIENT_URL as string,
+       "http://localhost:3000" as string],
     // origin: "http://localhost:3000",
     credentials: true,
 
