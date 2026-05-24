@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import puppeteer, { type Browser } from "puppeteer-core";
+import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import type { ResumeLocale } from "../types/userResume";
 import { buildResumeHtml } from "../templates/resumeHtml";
