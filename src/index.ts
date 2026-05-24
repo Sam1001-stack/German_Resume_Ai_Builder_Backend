@@ -7,9 +7,10 @@ import express, {
   type Response,
 } from "express";
 import connectDB from "./config/db";
-import authRoutes from "./routes/authRoutes";
 import aiRoutes from "./routes/aiRoutes";
+import authRoutes from "./routes/authRoutes";
 import resumeRoutes from "./routes/resumeRoutes";
+import userResumeRoutes from "./routes/userResumeRoutes";
 import { ApiError } from "./utils/apiError";
 
 const app = express();
@@ -35,6 +36,7 @@ app.get("/api/health", (_req: Request, res: Response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/user-resumes", userResumeRoutes);
 app.use("/api/resumes", resumeRoutes);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
