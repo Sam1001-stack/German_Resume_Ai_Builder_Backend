@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import puppeteer from "puppeteer";
+import chromium from "@sparticuz/chromium";
 import type { ResumeLocale } from "../types/userResume";
 import { buildResumeHtml } from "../templates/resumeHtml";
 import { ApiError } from "../utils/apiError";
@@ -22,8 +23,10 @@ export async function generateResumePdf(
 
   try {
     browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: { width: 1024, height: 1440 },
+      executablePath: await chromium.executablePath(),
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded" });
