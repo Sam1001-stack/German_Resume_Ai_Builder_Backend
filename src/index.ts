@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import cors from "cors";
+import { createServer } from "http";
 import express, {
   type NextFunction,
   type Request,
@@ -12,10 +13,13 @@ import aiRoutes from "./routes/aiRoutes";
 import authRoutes from "./routes/authRoutes";
 import resumeRoutes from "./routes/resumeRoutes";
 import userResumeRoutes from "./routes/userResumeRoutes";
+import recruiterRoutes from "./recruitment/routes/recruiterRoutes";
+import { initRecruiterSocket } from "./recruitment/socket";
 import { agentDebugLog } from "./utils/agentDebugLog";
 import { resolveHttpError } from "./utils/errorResponse";
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 
 console.log(process.env.CLIENT_URL + " client url" + PORT + " port");
@@ -41,6 +45,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/user-resumes", userResumeRoutes);
 app.use("/api/resumes", resumeRoutes);
+app.use("/api/recruiter", recruiterRoutes);
 
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   const { statusCode, body } = resolveHttpError(err);
@@ -81,7 +86,9 @@ async function startServer() {
   });
   // #endregion
 
-  app.listen(PORT, () => {
+  initRecruiterSocket(httpServer);
+
+  httpServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
