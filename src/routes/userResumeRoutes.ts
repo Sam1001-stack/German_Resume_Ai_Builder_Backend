@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   deleteUserResume,
+  downloadUserResumeCoverLetterPdf,
   downloadUserResumePdf,
   getUserResume,
   listUserResumes,
@@ -16,6 +17,7 @@ router.use(authenticate);
 
 router.post("/", validate(saveUserResumeSchema), saveUserResume);
 router.get("/", listUserResumes);
+router.get("/:id/cover-letter/pdf", downloadUserResumeCoverLetterPdf);
 router.get("/:id/pdf", downloadUserResumePdf);
 router.get("/:id", getUserResume);
 router.delete("/:id", deleteUserResume);

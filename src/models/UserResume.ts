@@ -9,6 +9,11 @@ const userResumeSchema = new Schema<IUserResumeDocument>(
     title: { type: String, required: true, trim: true },
     content: { type: Schema.Types.Mixed, required: true },
     pdfPath: { type: String, required: true },
+    jobDescription: { type: String, trim: true },
+    companyName: { type: String, trim: true },
+    targetRole: { type: String, trim: true },
+    coverLetter: { type: Schema.Types.Mixed },
+    coverLetterPdfPath: { type: String },
   },
   { timestamps: true }
 );

@@ -4,6 +4,8 @@ import puppeteer, { type Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import type { ResumeLocale } from "../types/userResume";
 import { buildResumeHtml } from "../templates/resumeHtml";
+import { buildCoverLetterHtml } from "../templates/coverLetterHtml";
+import type { CoverLetterContent } from "../types/coverLetter";
 import { ApiError } from "../utils/apiError";
 
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads", "resumes");
@@ -58,11 +60,7 @@ async function ensureUploadDir(userId: string): Promise<string> {
   return dir;
 }
 
-export async function generateResumePdf(
-  content: Record<string, unknown>,
-  locale: ResumeLocale
-): Promise<Buffer> {
-  const html = buildResumeHtml(content, locale);
+async function generatePdfFromHtml(html: string, label: string): Promise<Buffer> {
   let browser: Browser | undefined;
 
   try {
@@ -74,15 +72,74 @@ export async function generateResumePdf(
       printBackground: true,
       margin: { top: "0", right: "0", bottom: "0", left: "0" },
     });
-    console.log("[pdf] Resume PDF generated successfully");
+    console.log(`[pdf] ${label} generated successfully`);
     return Buffer.from(pdf);
   } catch (error) {
     const message = error instanceof Error ? error.message : "PDF generation failed";
-    console.error("[pdf] Puppeteer PDF generation failed:", message);
+    console.error(`[pdf] ${label} generation failed:`, message);
     throw new ApiError(500, message);
   } finally {
     await browser?.close();
   }
+}
+
+export async function generateResumePdf(
+  content: Record<string, unknown>,
+  locale: ResumeLocale
+): Promise<Buffer> {
+  const html = buildResumeHtml(content, locale);
+  return generatePdfFromHtml(html, "Resume PDF");
+}
+
+export async function generateCoverLetterPdf(
+  coverLetter: CoverLetterContent,
+  resumeContent: Record<string, unknown>,
+  locale: ResumeLocale
+): Promise<Buffer> {
+  const html = buildCoverLetterHtml(coverLetter, resumeContent, locale);
+  return generatePdfFromHtml(html, "Cover letter PDF");
+}
+
+export async function saveCoverLetterPdf(
+  userId: string,
+  resumeId: string,
+  coverLetter: CoverLetterContent,
+  resumeContent: Record<string, unknown>,
+  locale: ResumeLocale
+): Promise<string> {
+  const dir = await ensureUploadDir(userId);
+  const fullPath = path.join(dir, `${resumeId}-cover-letter.pdf`);
+  const pdfBuffer = await generateCoverLetterPdf(coverLetter, resumeContent, locale);
+  await fs.writeFile(fullPath, pdfBuffer);
+  return fullPath;
+}
+
+export async function resolveCoverLetterPdf(
+  userId: string,
+  resumeId: string,
+  coverLetter: CoverLetterContent,
+  resumeContent: Record<string, unknown>,
+  locale: ResumeLocale,
+  existingPath?: string | null
+): Promise<{ buffer: Buffer; pdfPath: string }> {
+  if (existingPath) {
+    try {
+      const buffer = await readResumePdf(existingPath);
+      return { buffer, pdfPath: existingPath };
+    } catch {
+      console.log("[pdf] Cached cover letter PDF missing — regenerating...");
+    }
+  }
+
+  const pdfPath = await saveCoverLetterPdf(
+    userId,
+    resumeId,
+    coverLetter,
+    resumeContent,
+    locale
+  );
+  const buffer = await readResumePdf(pdfPath);
+  return { buffer, pdfPath };
 }
 
 export async function saveResumePdf(

@@ -1,4 +1,5 @@
 import type { Document, Types } from "mongoose";
+import type { CoverLetterContent } from "./coverLetter";
 
 export type ResumeLocale = "en" | "de";
 
@@ -9,6 +10,11 @@ export interface IUserResume {
   title: string;
   content: Record<string, unknown>;
   pdfPath: string;
+  jobDescription?: string;
+  companyName?: string;
+  targetRole?: string;
+  coverLetter?: CoverLetterContent;
+  coverLetterPdfPath?: string;
 }
 
 export interface IUserResumeDocument extends IUserResume, Document {
@@ -25,4 +31,6 @@ export interface SavedUserResumeResponse {
   content: Record<string, unknown>;
   updatedAt: string;
   createdAt: string;
+  hasCoverLetter: boolean;
+  coverLetter?: CoverLetterContent;
 }

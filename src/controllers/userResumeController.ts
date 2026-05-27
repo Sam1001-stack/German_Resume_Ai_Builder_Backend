@@ -29,6 +29,19 @@ export const downloadUserResumePdf = asyncHandler(async (req: AuthRequest, res: 
   res.send(buffer);
 });
 
+export const downloadUserResumeCoverLetterPdf = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const { buffer, title } = await userResumeService.getCoverLetterPdf(
+      req.user!._id.toString(),
+      String(req.params.id)
+    );
+    const safeName = title.replace(/[^\w\-]+/g, "_") || "cover_letter";
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}.pdf"`);
+    res.send(buffer);
+  }
+);
+
 export const deleteUserResume = asyncHandler(async (req: AuthRequest, res: Response) => {
   await userResumeService.remove(req.user!._id.toString(), String(req.params.id));
   res.json({ message: "Resume deleted" });
