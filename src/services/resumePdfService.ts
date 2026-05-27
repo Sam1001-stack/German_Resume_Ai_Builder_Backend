@@ -29,6 +29,29 @@ const CONTAINER_LAUNCH_ARGS = [
   "--single-process",
 ];
 
+import { execSync } from "child_process";
+
+try {
+  console.log("chromium:");
+  console.log(execSync("which chromium").toString());
+} catch (e) {
+  console.log("chromium NOT found");
+}
+
+try {
+  console.log("chromium-browser:");
+  console.log(execSync("which chromium-browser").toString());
+} catch (e) {
+  console.log("chromium-browser NOT found");
+}
+
+try {
+  console.log("google-chrome:");
+  console.log(execSync("which google-chrome").toString());
+} catch (e) {
+  console.log("google-chrome NOT found");
+}
+
 function isRailway(): boolean {
   return Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME);
 }
