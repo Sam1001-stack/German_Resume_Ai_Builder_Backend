@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import { constants } from "fs";
 import path from "path";
 import puppeteer, { type Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
@@ -7,15 +8,47 @@ import { buildResumeHtml } from "../templates/resumeHtml";
 import { buildCoverLetterHtml } from "../templates/coverLetterHtml";
 import type { CoverLetterContent } from "../types/coverLetter";
 import { ApiError } from "../utils/apiError";
+import { agentDebugLog } from "../utils/agentDebugLog";
 
 const UPLOAD_ROOT = path.join(process.cwd(), "uploads", "resumes");
 
-function isProductionRuntime(): boolean {
-  return (
-    process.env.NODE_ENV === "production" ||
-    Boolean(process.env.RAILWAY_ENVIRONMENT) ||
-    Boolean(process.env.VERCEL)
-  );
+const SYSTEM_CHROMIUM_PATHS = [
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/google-chrome-stable",
+];
+
+const CONTAINER_LAUNCH_ARGS = [
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--headless=new",
+  "--single-process",
+];
+
+function isRailway(): boolean {
+  return Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME);
+}
+
+function isServerlessRuntime(): boolean {
+  return Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+async function fileIsExecutable(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function resolveSystemChromiumPath(): Promise<string | null> {
+  for (const candidate of SYSTEM_CHROMIUM_PATHS) {
+    if (await fileIsExecutable(candidate)) return candidate;
+  }
+  return null;
 }
 
 async function resolveExecutablePath(): Promise<string> {
@@ -23,7 +56,23 @@ async function resolveExecutablePath(): Promise<string> {
     return process.env.PUPPETEER_EXECUTABLE_PATH;
   }
 
-  if (isProductionRuntime()) {
+  // Railway: use apt-installed Chromium (see nixpacks.toml), not @sparticuz /tmp binary
+  if (isRailway()) {
+    const systemPath = await resolveSystemChromiumPath();
+    if (systemPath) return systemPath;
+    throw new ApiError(
+      503,
+      "Chromium is not installed on the server. Redeploy after adding nixpacks.toml or set PUPPETEER_EXECUTABLE_PATH."
+    );
+  }
+
+  if (isServerlessRuntime()) {
+    return chromium.executablePath();
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    const systemPath = await resolveSystemChromiumPath();
+    if (systemPath) return systemPath;
     return chromium.executablePath();
   }
 
@@ -34,22 +83,43 @@ async function resolveExecutablePath(): Promise<string> {
     return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   }
 
-  return "/usr/bin/google-chrome-stable";
+  const systemPath = await resolveSystemChromiumPath();
+  return systemPath ?? "/usr/bin/google-chrome-stable";
 }
 
 /** Lazily launch Puppeteer only when a PDF is requested (save or download). */
 async function launchBrowser(): Promise<Browser> {
-  const executablePath = await resolveExecutablePath();
-  const useBundledChromium = isProductionRuntime();
+  const useSparticuz = isServerlessRuntime() && !isRailway();
 
-  console.log("[pdf] Starting Puppeteer for resume PDF generation...");
+  if (useSparticuz) {
+    chromium.setGraphicsMode = false;
+  }
+
+  const executablePath = await resolveExecutablePath();
+  const launchArgs = useSparticuz
+    ? [...chromium.args, ...CONTAINER_LAUNCH_ARGS]
+    : CONTAINER_LAUNCH_ARGS;
+
+  console.log(`[pdf] Launching Puppeteer (${executablePath})...`);
+
+  // #region agent log
+  agentDebugLog({
+    location: "resumePdfService.ts:launchBrowser",
+    message: "Puppeteer launch config",
+    hypothesisId: "PDF-RAILWAY",
+    data: {
+      executablePath,
+      isRailway: isRailway(),
+      useSparticuz,
+      argCount: launchArgs.length,
+    },
+  });
+  // #endregion
 
   return puppeteer.launch({
     headless: true,
     executablePath,
-    args: useBundledChromium
-      ? chromium.args
-      : ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    args: launchArgs,
     defaultViewport: { width: 1024, height: 1440 },
   });
 }
