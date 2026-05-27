@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import mongoose, { Schema, type Model } from "mongoose";
-import type { IUserDocument } from "../types/user";
+import type { IUserDocument, UserRole } from "../types/user";
+
+const USER_ROLES: UserRole[] = ["user", "admin", "recruiter"];
 
 const userSchema = new Schema<IUserDocument>(
   {
@@ -19,6 +21,11 @@ const userSchema = new Schema<IUserDocument>(
     phone: { type: String, trim: true, maxlength: 30 },
     location: { type: String, trim: true, maxlength: 100 },
     emailVerified: { type: Boolean, default: false },
+    role: {
+      type: String,
+      enum: USER_ROLES,
+      default: "user",
+    },
     emailVerificationOtp: { type: String, default: null, select: false },
     emailVerificationOtpExpires: { type: Date, default: null, select: false },
     passwordResetOtp: { type: String, default: null, select: false },

@@ -28,6 +28,7 @@ const toPublicUser = (user: IUserDocument): PublicUser => ({
   phone: user.phone,
   location: user.location,
   emailVerified: user.emailVerified,
+  role: user.role ?? "user",
   createdAt: user.createdAt.toISOString(),
 });
 
@@ -84,6 +85,7 @@ export const authService = {
       password: input.password,
       image: input.image || undefined,
       emailVerified: false,
+      role: input.role ?? "user",
     });
 
     // #region agent log

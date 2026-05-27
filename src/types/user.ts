@@ -1,5 +1,7 @@
 import type { Document, Types } from "mongoose";
 
+export type UserRole = "user" | "admin" | "recruiter";
+
 export type OtpPurpose = "email_verification" | "password_reset";
 
 export interface IUser {
@@ -12,6 +14,7 @@ export interface IUser {
   phone?: string;
   location?: string;
   emailVerified: boolean;
+  role: UserRole;
   emailVerificationOtp?: string | null;
   emailVerificationOtpExpires?: Date | null;
   passwordResetOtp?: string | null;
@@ -37,5 +40,6 @@ export interface PublicUser {
   phone?: string;
   location?: string;
   emailVerified: boolean;
+  role: UserRole;
   createdAt: string;
 }
