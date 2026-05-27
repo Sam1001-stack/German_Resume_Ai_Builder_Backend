@@ -1,4 +1,4 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { Schema, type Model } from "mongoose";
 import type { IUserResumeDocument } from "../types/userResume";
 
 const userResumeSchema = new Schema<IUserResumeDocument>(
@@ -21,5 +21,5 @@ const userResumeSchema = new Schema<IUserResumeDocument>(
 userResumeSchema.index({ userId: 1, clientId: 1 }, { unique: true });
 
 export const UserResume =
-  mongoose.models.UserResume ??
-  model<IUserResumeDocument>("UserResume", userResumeSchema);
+  (mongoose.models.UserResume as Model<IUserResumeDocument> | undefined) ??
+  mongoose.model<IUserResumeDocument>("UserResume", userResumeSchema);

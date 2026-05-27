@@ -1,4 +1,4 @@
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { Schema, type Model } from "mongoose";
 import type { IResumeDocument } from "../types/resume";
 
 const resumeSchema = new Schema<IResumeDocument>(
@@ -43,5 +43,5 @@ const resumeSchema = new Schema<IResumeDocument>(
 );
 
 export const Resume =
-  mongoose.models.Resume ??
-  model<IResumeDocument>("Resume", resumeSchema);
+  (mongoose.models.Resume as Model<IResumeDocument> | undefined) ??
+  mongoose.model<IResumeDocument>("Resume", resumeSchema);

@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import mongoose, { Schema, model } from "mongoose";
+import mongoose, { Schema, type Model } from "mongoose";
 import type { IUserDocument } from "../types/user";
 
 const userSchema = new Schema<IUserDocument>(
@@ -41,4 +41,5 @@ userSchema.methods.comparePassword = async function comparePassword(
 };
 
 export const User =
-  mongoose.models.User ?? model<IUserDocument>("User", userSchema);
+  (mongoose.models.User as Model<IUserDocument> | undefined) ??
+  mongoose.model<IUserDocument>("User", userSchema);
