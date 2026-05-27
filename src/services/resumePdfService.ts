@@ -81,49 +81,42 @@ async function resolveSystemChromiumPath(): Promise<string | null> {
 //     return process.env.PUPPETEER_EXECUTABLE_PATH;
 //   }
 
-export const resolveExecutablePath = async (): Promise<string> => {
-  try {
-    const browserPath = execSync(
-      "which chromium || which chromium-browser || which google-chrome"
-    ).toString().trim();
-    if (browserPath) {
-      return browserPath;
-    }
-    throw new ApiError(503, "Chromium is not installed on the server. Redeploy after adding nixpacks.toml or set PUPPETEER_EXECUTABLE_PATH.");
-  } catch (error) {
-    throw new ApiError(503, "Chromium is not installed on the server. Redeploy after adding nixpacks.toml or set PUPPETEER_EXECUTABLE_PATH.");
-  }
-
+export const resolveExecutablePath = async (): Promise<any> => {
+ 
+  const browserPath: any = execSync(
+    "which chromium || which chromium-browser || which google-chrome"
+  ).toString().trim() as any;
 
   // Railway: use apt-installed Chromium (see nixpacks.toml), not @sparticuz /tmp binary
-  // if (isRailway()) {
-  //   const systemPath = await resolveSystemChromiumPath();
-  //   if (systemPath) return systemPath;
-  //   throw new ApiError(
-  //     503,
-  //     "Chromium is not installed on the server. Redeploy after adding nixpacks.toml or set PUPPETEER_EXECUTABLE_PATH."
-  //   );
-  // }
+  if (isRailway()) {
+    const systemPath = await resolveSystemChromiumPath();
+    if (systemPath) return systemPath;
+    throw new ApiError(
+      503,
+      "Chromium is not installed on the server. Redeploy after adding nixpacks.toml or set PUPPETEER_EXECUTABLE_PATH."
+    );
+  }
 
-  // if (isServerlessRuntime()) {
-  //   return chromium.executablePath();
-  // }
+  if (isServerlessRuntime()) {
+    return chromium.executablePath();
+  }
 
-  // if (process.env.NODE_ENV === "production") {
-  //   const systemPath = await resolveSystemChromiumPath();
-  //   if (systemPath) return systemPath;
-  //   return chromium.executablePath();
-  // }
+  if (process.env.NODE_ENV === "production") {
+    const systemPath = await resolveSystemChromiumPath();
+    if (systemPath) return systemPath;
+    return chromium.executablePath();
+  }
 
-  // if (process.platform === "win32") {
-  //   return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-  // }
-  // if (process.platform === "darwin") {
-  //   return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-  // }
+  if (process.platform === "win32") {
+    return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+  }
+  if (process.platform === "darwin") {
+    return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+  }
 
-  // const systemPath = await resolveSystemChromiumPath();
-  // return systemPath ?? await resolveExecutablePath();
+  const systemPath = await resolveSystemChromiumPath();
+  return systemPath ?? await resolveExecutablePath();
+  return browserPath;
 
 }
 
