@@ -101,6 +101,8 @@ export function buildResumeHtml(content: ResumeContent, locale: ResumeLocale): s
     .filter(Boolean)
     .join(", ");
 
+  const socialLinks = asArray<Record<string, unknown>>(content.socialLinks);
+
   const werkstudentRows = [
     { label: label(locale, "visaStatus"), value: String(werkstudent.visaStatus ?? "") },
     { label: label(locale, "taxId"), value: String(werkstudent.taxId ?? "") },
@@ -125,6 +127,14 @@ export function buildResumeHtml(content: ResumeContent, locale: ResumeLocale): s
     body += `</div>`;
   }
   if (locationLine) body += `<div>${esc(locationLine)}</div>`;
+  if (socialLinks.length) {
+    body += `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px;margin-top:2px;font-size:10px;color:#71717a;">`;
+    for (const s of socialLinks) {
+      const url = String(s.url ?? "").replace(/^https?:\/\//, "");
+      body += `<span>${esc(s.platform)}: ${esc(url)}</span>`;
+    }
+    body += `</div>`;
+  }
   body += `</div></header>`;
 
   if (resumeType === "werkstudent") {
@@ -214,16 +224,6 @@ export function buildResumeHtml(content: ResumeContent, locale: ResumeLocale): s
         body += `<p style="margin:0;font-size:10px;">${esc(c.name)} — ${esc(c.issuer)}</p>`;
       }
       body += `</div>`;
-    }
-    body += `</section>`;
-  }
-
-  const socialLinks = asArray<Record<string, unknown>>(content.socialLinks);
-  if (socialLinks.length) {
-    body += `<section style="margin-top:20px;border-top:1px solid #e4e4e7;padding-top:12px;font-size:9px;color:#71717a;">`;
-    for (const s of socialLinks) {
-      const url = String(s.url ?? "").replace(/^https?:\/\//, "");
-      body += `<span style="margin-right:12px;">${esc(s.platform)}: ${esc(url)}</span>`;
     }
     body += `</section>`;
   }
