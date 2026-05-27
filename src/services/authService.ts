@@ -14,6 +14,7 @@ import type {
   VerifyOtpInput,
 } from "../validators/authValidator";
 import { sendOtpEmail } from "./emailService";
+import { agentDebugLog } from "../utils/agentDebugLog";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 
@@ -62,6 +63,15 @@ const setPasswordResetOtp = async (user: IUserDocument): Promise<string> => {
 
 export const authService = {
   async register(input: RegisterInput) {
+    // #region agent log
+    agentDebugLog({
+      location: "authService.ts:register:entry",
+      message: "Register started",
+      hypothesisId: "H3",
+      data: { emailDomain: input.email.split("@")[1] ?? "unknown" },
+    });
+    // #endregion
+
     const existing = await User.findOne({ email: input.email.toLowerCase() });
     if (existing) {
       throw new ApiError(409, "Email is already registered");
@@ -76,9 +86,26 @@ export const authService = {
       emailVerified: false,
     });
 
+    // #region agent log
+    agentDebugLog({
+      location: "authService.ts:register:afterCreate",
+      message: "User created",
+      hypothesisId: "H4",
+      data: { userId: user._id.toString() },
+    });
+    // #endregion
+
     await setEmailVerificationOtp(user);
 
     const token = signAuthToken(user._id.toString());
+
+    // #region agent log
+    agentDebugLog({
+      location: "authService.ts:register:success",
+      message: "Register completed",
+      hypothesisId: "H5",
+    });
+    // #endregion
 
     return {
       user: toPublicUser(user),

@@ -6,17 +6,17 @@ import express, {
   type Request,
   type Response,
 } from "express";
+import mongoose from "mongoose";
 import connectDB from "./config/db";
 import aiRoutes from "./routes/aiRoutes";
 import authRoutes from "./routes/authRoutes";
 import resumeRoutes from "./routes/resumeRoutes";
 import userResumeRoutes from "./routes/userResumeRoutes";
-import { ApiError } from "./utils/apiError";
+import { agentDebugLog } from "./utils/agentDebugLog";
+import { resolveHttpError } from "./utils/errorResponse";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-void connectDB();
 
 console.log(process.env.CLIENT_URL + " client url" + PORT + " port");
 
@@ -42,16 +42,48 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/user-resumes", userResumeRoutes);
 app.use("/api/resumes", resumeRoutes);
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof ApiError) {
-    res.status(err.statusCode).json({ message: err.message });
-    return;
-  }
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+  const { statusCode, body } = resolveHttpError(err);
 
-  console.error(err);
-  res.status(500).json({ message: "Internal server error" });
+  // #region agent log
+  agentDebugLog({
+    location: "index.ts:errorHandler",
+    message: "Unhandled route error",
+    hypothesisId: "H1-H5",
+    data: {
+      path: req.path,
+      method: req.method,
+      statusCode,
+      errorName: err.name,
+      errorMessage: err.message,
+      mongoReadyState: mongoose.connection.readyState,
+    },
+  });
+  // #endregion
+
+  console.error(`[API Error] ${req.method} ${req.path}`, err);
+  res.status(statusCode).json(body);
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+async function startServer() {
+  await connectDB();
+
+  // #region agent log
+  agentDebugLog({
+    location: "index.ts:startServer",
+    message: "Server starting",
+    hypothesisId: "H2",
+    data: {
+      hasMongoUri: Boolean(process.env.MONGODB_URI),
+      hasJwtSecret: Boolean(process.env.JWT_SECRET),
+      nodeEnv: process.env.NODE_ENV ?? "undefined",
+    },
+  });
+  // #endregion
+
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+void startServer();
