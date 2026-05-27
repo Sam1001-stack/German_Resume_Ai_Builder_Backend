@@ -1,7 +1,6 @@
+import { execSync } from "child_process";
 import fs from "fs/promises";
 import { constants } from "fs";
-
-
 import path from "path";
 import puppeteer, { type Browser } from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
@@ -20,6 +19,18 @@ const SYSTEM_CHROMIUM_PATHS = [
   "/usr/bin/google-chrome-stable",
 ];
 
+const WIN_BROWSER_PATHS = [
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  ...(process.env.LOCALAPPDATA
+    ? [path.join(process.env.LOCALAPPDATA, "Google", "Chrome", "Application", "chrome.exe")]
+    : []),
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+];
+
+const MAC_BROWSER_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
 const CONTAINER_LAUNCH_ARGS = [
   "--no-sandbox",
   "--disable-setuid-sandbox",
@@ -28,30 +39,6 @@ const CONTAINER_LAUNCH_ARGS = [
   "--headless=new",
   "--single-process",
 ];
-
-import { execSync } from "child_process";
-
-try {
-  console.log("chromium:");
-  console.log(execSync("which chromium").toString());
-} catch (e) {
-  console.log("chromium NOT found");
-}
-
-try {
-  console.log("chromium-browser:");
-  console.log(execSync("which chromium-browser").toString());
-} catch (e) {
-  console.log("chromium-browser NOT found");
-}
-
-try {
-  console.log("google-chrome:");
-  console.log(execSync("which google-chrome").toString());
-} catch (e) {
-  console.log("google-chrome NOT found");
-}
-
 function isRailway(): boolean {
   return Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_NAME);
 }
@@ -60,13 +47,29 @@ function isServerlessRuntime(): boolean {
   return Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
 }
 
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function fileIsExecutable(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath, constants.X_OK);
     return true;
   } catch {
-    return false;
+    return await fileExists(filePath);
   }
+}
+
+async function resolveFirstExistingPath(candidates: string[]): Promise<string | null> {
+  for (const candidate of candidates) {
+    if (await fileExists(candidate)) return candidate;
+  }
+  return null;
 }
 
 async function resolveSystemChromiumPath(): Promise<string | null> {
@@ -76,16 +79,25 @@ async function resolveSystemChromiumPath(): Promise<string | null> {
   return null;
 }
 
-// async function resolveExecutablePath(): Promise<string> {
-//   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-//     return process.env.PUPPETEER_EXECUTABLE_PATH;
-//   }
+function resolveLinuxBrowserFromPath(): string | null {
+  if (process.platform === "win32") return null;
+  try {
+    const result = execSync(
+      "which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null",
+      { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }
+    ).trim();
+    return result || null;
+  } catch {
+    return null;
+  }
+}
 
-export const resolveExecutablePath = async (): Promise<any> => {
- 
-  const browserPath: any = execSync(
-    "which chromium || which chromium-browser || which google-chrome"
-  ).toString().trim() as any;
+async function resolveExecutablePath(): Promise<string> {
+  const envPath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+  if (envPath) {
+    if (await fileExists(envPath)) return envPath;
+    throw new ApiError(503, `PUPPETEER_EXECUTABLE_PATH not found: ${envPath}`);
+  }
 
   // Railway: use apt-installed Chromium (see nixpacks.toml), not @sparticuz /tmp binary
   if (isRailway()) {
@@ -101,23 +113,37 @@ export const resolveExecutablePath = async (): Promise<any> => {
     return chromium.executablePath();
   }
 
-  if (process.env.NODE_ENV === "production") {
-    const systemPath = await resolveSystemChromiumPath();
-    if (systemPath) return systemPath;
-    return chromium.executablePath();
+  if (process.platform === "win32") {
+    const winPath = await resolveFirstExistingPath(WIN_BROWSER_PATHS);
+    if (winPath) return winPath;
+    throw new ApiError(
+      503,
+      "Chrome or Edge not found. Install Google Chrome or set PUPPETEER_EXECUTABLE_PATH in server/.env"
+    );
   }
 
-  if (process.platform === "win32") {
-    return "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-  }
   if (process.platform === "darwin") {
-    return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+    if (await fileExists(MAC_BROWSER_PATH)) return MAC_BROWSER_PATH;
+    throw new ApiError(
+      503,
+      "Google Chrome not found. Install Chrome or set PUPPETEER_EXECUTABLE_PATH."
+    );
   }
 
   const systemPath = await resolveSystemChromiumPath();
-  return systemPath ?? await resolveExecutablePath();
-  return browserPath;
+  if (systemPath) return systemPath;
 
+  const fromPath = resolveLinuxBrowserFromPath();
+  if (fromPath && (await fileExists(fromPath))) return fromPath;
+
+  if (process.env.NODE_ENV === "production") {
+    return chromium.executablePath();
+  }
+
+  throw new ApiError(
+    503,
+    "Chromium/Chrome not found. Install Chrome or set PUPPETEER_EXECUTABLE_PATH in server/.env"
+  );
 }
 
 /** Lazily launch Puppeteer only when a PDF is requested (save or download). */
